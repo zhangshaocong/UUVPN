@@ -1,10 +1,10 @@
-name: Android CI
+name: Android Build & Release
 
 on:
   push:
     branches:
       - main
-  pull_request:
+  workflow_dispatch:  # 手动触发构建
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: Android-kotlin-Code  # ⭐ 关键：进入子目录执行
+        working-directory: Android-kotlin-Code  # ⭐ 切换到你的 Kotlin 工程目录
 
     steps:
       - name: Checkout repository
@@ -27,11 +27,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build with Gradle
+      - name: Build APK
         run: ./gradlew assembleDebug
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Upload Release APK to GitHub
+        uses: softprops/action-gh-release@v2
         with:
-          name: app-debug-apk
-          path: Android-kotlin-Code/app/build/outputs/apk/debug/app-debug.apk
+          tag_name: "v${{ github.run_number }}"
+          name: "UUVPN Build #${{ github.run_number }}"
+          body: |
+            🚀 自动构建成功！
+            - 分支: ${{ github.ref_name }}
+            - 构建编号: ${{ github.run_number }}
+          files: Android-kotlin-Code/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
