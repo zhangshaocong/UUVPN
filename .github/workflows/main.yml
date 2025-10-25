@@ -31,7 +31,7 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: List APK files
-        run: ls -R app/build/outputs/apk/  # ✅ 验证 APK 是否生成
+        run: ls -R app/meta/release/  # ✅ 验证 APK 是否生成
 
       - name: Upload Release APK to GitHub
         uses: softprops/action-gh-release@v2
@@ -42,7 +42,7 @@ jobs:
             🚀 自动构建成功！
             - 分支: ${{ github.ref_name }}
             - 构建编号: ${{ github.run_number }}
-          files: app/build/outputs/apk/debug/app-debug.apk  # ⭐ 相对工作目录
+          files: app/meta/release/*.apk  # ⭐ 相对工作目录
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
