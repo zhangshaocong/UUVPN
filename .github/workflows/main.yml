@@ -42,7 +42,7 @@ jobs:
             🚀 自动构建成功！
             - 分支: ${{ github.ref_name }}
             - 构建编号: ${{ github.run_number }}
-          files: 'app/meta/release/UUVPN-3.0.2-meta-arm64-v8a-release.apk'  # ⭐ 相对工作目录
+          files: app/meta/release/UUVPN-3.0.2-meta-arm64-v8a-release.apk  # ⭐ 相对工作目录
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
