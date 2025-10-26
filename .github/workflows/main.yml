@@ -7,57 +7,64 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_and_release:
+    # 使用最新的 Ubuntu 运行环境
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: Android-kotlin-Code
-
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: 检出代码
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+    - name: 设置 Java 环境 (JDK 17)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        
+    - name: 缓存 Gradle 依赖
+      # 加快后续构建速度
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+    - name: 授予 gradlew 执行权限
+      # gradlew 文件可能没有执行权限，需要手动添加
+      run: chmod +x ./gradlew
 
-      - name: Clean old build outputs
-        run: |
-          echo "🧹 清理旧的 APK 文件..."
-          rm -rf app/build/outputs/apk/
-          echo "✅ 清理完成"
-          ls -R app/build/outputs/apk/ || echo "(目录为空)"
+    - name: 构建 Release APK
+      # 根据 GitHub 仓库的结构（存在 'Android-kotlin-Code' 目录），
+      # 假定 Android 模块路径为 ':Android-kotlin-Code'
+      run: |
+        # 注意：如果您的项目需要签名才能生成 Release APK，
+        # 您需要配置签名文件和密码作为 Secrets。
+        ./gradlew :Android-kotlin-Code:assembleRelease
 
-      - name: Build APKs
-        run: |
-          echo "🏗️ 开始构建 APK..."
-          ./gradlew clean assembleDebug assembleRelease
-          echo "✅ 构建完成"
+    - name: 查找生成的 APK 文件路径
+      id: find_apk
+      run: |
+        # 查找最新的 Release APK 文件，并将其路径设置为输出变量
+        APK_DIR="Android-kotlin-Code/build/outputs/apk/release/"
+        # 找到第一个 .apk 文件
+        APK_PATH=$(find $APK_DIR -name "*.apk" -type f | head -n 1)
+        
+        if [ -z "$APK_PATH" ]; then
+          echo "::error::未找到 Release APK 文件。请检查构建步骤是否成功。"
+          exit 1
+        fi
+        
+        echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
 
-      - name: Show generated APKs
-        run: |
-          echo "📦 构建产物列表："
-          find app/build/outputs/apk -type f -name "*.apk" | tee apk_list.txt
-          echo "✅ 上面是所有生成的 APK 文件路径"
-
-      - name: Upload APKs to GitHub Release
-        if: success()
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "v${{ github.run_number }}"
-          name: "UUVPN Build #${{ github.run_number }}"
-          body: |
-            🚀 自动构建成功！
-            - 分支: ${{ github.ref_name }}
-            - 构建编号: ${{ github.run_number }}
-          files: |
-            app/build/outputs/apk/**/*.apk
-          overwrite_files: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 发布到 GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        # 使用标签名作为 Release 名称
+        name: Release ${{ github.ref_name }}
+        # 将 APK 文件作为附件上传
+        files: ${{ steps.find_apk.outputs.APK_PATH }}
+      env:
+        # GITHUB_TOKEN 是 GitHub Actions 默认提供的权限令牌
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
