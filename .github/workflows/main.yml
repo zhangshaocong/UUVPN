@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # 手动触发构建
+  workflow_dispatch:  # 可手动触发构建
 
 jobs:
   build:
@@ -12,37 +12,49 @@ jobs:
 
     defaults:
       run:
-        working-directory: Android-kotlin-Code  # ⭐ 切换到你的 Kotlin 工程目录
+        working-directory: Android-kotlin-Code  # Kotlin 工程目录
 
     steps:
+      # 1️⃣ 拉取代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ 安装 JDK 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
-      # 🧹 Step 1. 删除旧的 APK 输出目录
-      - name: Clean old APKs
+      # 3️⃣ 给 gradlew 添加执行权限
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # 4️⃣ 清理旧的构建产物
+      - name: Clean old build outputs
         run: |
-          echo "清理旧的 APK 文件..."
+          echo "🧹 清理旧的 APK 文件..."
           rm -rf app/build/outputs/apk/
-          mkdir -p app/build/outputs/apk/
-          echo "✅ 已清空 app/build/outputs/apk/ 目录"
-          ls -R app/build/outputs/apk/ || echo "（目录已空）"
+          echo "✅ 清理完成，当前目录结构："
+          ls -R app/build/outputs/apk/ || echo "(目录为空)"
 
-      # 🏗 Step 2. 构建 APK
-      - name: Build APK
-        run: ./gradlew clean assembleRelease
+      # 5️⃣ 构建 debug 与 release 两种版本（防止某些渠道只输出 debug）
+      - name: Build APKs
+        run: |
+          echo "🏗️ 开始构建 APK..."
+          ./gradlew clean assembleDebug assembleRelease
+          echo "✅ 构建完成"
 
-      # 🕵 Step 3. 打印新的 APK 文件结构
-      - name: List generated APKs
-        run: ls -R app/build/outputs/apk/
+      # 6️⃣ 输出所有生成的 APK 路径（这一步是关键）
+      - name: Show generated APKs
+        run: |
+          echo "📦 构建产物列表："
+          find app/build/outputs/apk -type f -name "*.apk" | tee apk_list.txt
+          echo "✅ 上面是所有生成的 APK 文件路径"
 
-      # 🚀 Step 4. 上传 Release APK 到 GitHub Releases
-      - name: Upload Release APKs to GitHub
+      # 7️⃣ 上传所有找到的 APK 到 Release
+      - name: Upload APKs to GitHub Release
+        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.run_number }}"
@@ -51,7 +63,8 @@ jobs:
             🚀 自动构建成功！
             - 分支: ${{ github.ref_name }}
             - 构建编号: ${{ github.run_number }}
-          files: 'app/build/outputs/apk/**/release/*.apk'  # ⭐ 匹配所有 release APK
+          files: |
+            app/build/outputs/apk/**/*.apk   # ⭐ 自动匹配所有 APK（包括 alpha/meta/debug/release）
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
