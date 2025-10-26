@@ -32,17 +32,16 @@ jobs:
         restore-keys: ${{ runner.os }}-gradle-
 
     - name: 授予 gradlew 执行权限
-      # gradlew 文件可能没有执行权限，需要手动添加
-      run: chmod +x ./gradlew
+      # 在执行 chmod 前，先切换到包含 gradlew 的目录
+      run: |
+        cd Android-kotlin-Code
+        chmod +x ./gradlew
 
     - name: 构建 Release APK
-      # 根据 GitHub 仓库的结构（存在 'Android-kotlin-Code' 目录），
-      # 假定 Android 模块路径为 ':Android-kotlin-Code'
-      run: |
-        # 注意：如果您的项目需要签名才能生成 Release APK，
-        # 您需要配置签名文件和密码作为 Secrets。
-        ./gradlew :Android-kotlin-Code:assembleRelease
-
+      # 使用 'working-directory' 参数在正确的目录中执行命令
+      run: ./gradlew assembleRelease
+      working-directory: Android-kotlin-Code
+      
     - name: 查找生成的 APK 文件路径
       id: find_apk
       run: |
