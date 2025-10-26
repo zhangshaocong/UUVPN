@@ -24,16 +24,25 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
+      # 🧹 Step 1. 删除旧的 APK 输出目录
+      - name: Clean old APKs
+        run: |
+          echo "清理旧的 APK 文件..."
+          rm -rf app/build/outputs/apk/
+          mkdir -p app/build/outputs/apk/
+          echo "✅ 已清空 app/build/outputs/apk/ 目录"
+          ls -R app/build/outputs/apk/ || echo "（目录已空）"
 
+      # 🏗 Step 2. 构建 APK
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew clean assembleRelease
 
-      - name: List APK files
-        run: ls -R app/meta/release/  # ✅ 验证 APK 是否生成
+      # 🕵 Step 3. 打印新的 APK 文件结构
+      - name: List generated APKs
+        run: ls -R app/build/outputs/apk/
 
-      - name: Upload Release APK to GitHub
+      # 🚀 Step 4. 上传 Release APK 到 GitHub Releases
+      - name: Upload Release APKs to GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "v${{ github.run_number }}"
@@ -42,7 +51,7 @@ jobs:
             🚀 自动构建成功！
             - 分支: ${{ github.ref_name }}
             - 构建编号: ${{ github.run_number }}
-          files: app/meta/release/UUVPN-3.0.2-meta-arm64-v8a-release.apk  # ⭐ 相对工作目录
+          files: 'app/build/outputs/apk/**/release/*.apk'  # ⭐ 匹配所有 release APK
           overwrite_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
